@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <style>
+        html,
+        body {
+            height: 100%;
+            margin: 0px;
+        }
+
+        #container {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: flex;
+            flex-flow: column nowrap;
+            justify-content: start;
+            align-items: center;
+        }
+
+        #title {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 90px 0 20px;
+        }
+
+        #search-container {
+            display: flex;
+            flex-flow: row nowrap;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        #search-input {
+            height: 54px;
+            font-size: 30px;
+            width: 150px;
+            outline: none;
+            border: 0;
+            border-bottom: 1px solid #333;
+            margin: 20px;
+        }
+
+        #search-input::placeholder {
+            color: #e5e5e5;
+        }
+
+        #search-button {
+            background-color: white;
+            border: 1px solid #e5e5e5;
+            border-radius: 5px;
+            font-size: 30px;
+            margin: 22px 20px 18px 20px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        #search-button:hover {
+            border-color: #333;
+        }
+
+        #font-container {
+            margin-top: 20px;
+            width: 80%;
+            display: flex;
+            flex-flow: row wrap;
+        }
+
+        .font-box {
+            margin: 10px
+        }
+
+        .font-char {
+            min-height: 60px;
+            min-width: 60px;
+            text-align: center;
+            font-size: 45px;
+        }
+        .font-box input{
+            display: none;
+        }
+    </style>
+    <script>
+        function formatCode(code) {
+            return ('0000'+code).slice(-4)
+        }
+        function showSimilarFile(codeFile,codeFileIndex,charCode){
+            const fonts = window.fontdic[codeFile][codeFileIndex]
+            const fontsDOM = document.getElementsByClassName('font-box')
+            fontsDOM[0].children[0].innerText = String.fromCharCode(charCode)
+            fontsDOM[0].children[1].innerText = `\\u${formatCode(charCode.toString(16))}`
+            fontsDOM[0].style.display = 'block'
+            for(let i=1;i<fontsDOM.length;i++){
+                if(i < fonts.length){
+                    fontsDOM[i].children[0].innerText = String.fromCharCode(fonts[i])
+                    fontsDOM[i].children[1].innerText = `\\u${formatCode(fonts[i].toString(16))}`
+                    fontsDOM[i].style.display = 'block'
+                }else {
+                    fontsDOM[i].style.display = 'none'
+                }
+            }
+        }
+        window.fontdic = {}
+
+        window.onload = function () {
+            function showFontChange(e) {
+                console.log(e)
+            }
+            const urlPath = location.href.split('/')
+            urlPath.pop()
+            const host = urlPath.join('/')
+            const similarFontSize = 51
+            const fontFileSize = 1000
+
+            for (let i = 0; i < similarFontSize; i++) {
+                const html = `<div class="font-box" style="display: none"><div class="font-char"></div><div class="font-code" ></div></div>`
+                document.getElementById('font-container').innerHTML += html
+            }
+
+            const submit = document.getElementById('search-container')
+            const input = document.getElementById('search-input')
+            submit.onsubmit = function (e) {
+                e.preventDefault()
+                const char = input.value[0]
+                if(!!char){
+                    input.value = char
+                    const charCode = char.charCodeAt(0)-1
+                    if(charCode<0){
+                        alert('未收录空格\\u0000')
+                        return
+                    }
+                    const codeFile = Math.floor(charCode/fontFileSize)
+                    const codeFileIndex = charCode % fontFileSize
+                    if(codeFile in window.fontdic){
+                        showSimilarFile(codeFile,codeFileIndex,charCode+1)
+                    }else {
+
+                        const xhr = new XMLHttpRequest()
+                        xhr.open('GET',`${host}/fontcode/${codeFile}.json`,true)
+                        xhr.send()
+
+                        xhr.onreadystatechange = function(xh){
+                            if(xhr.readyState == 4 && xhr.status == 200){
+                                const data = JSON.parse(xhr.responseText)
+                                window.fontdic[codeFile] = data
+                                showSimilarFile(codeFile,codeFileIndex,charCode+1)
+                            }
+                        }
+                    }
+                    
+                }
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <div id="container">
+        <div id="title">UTF-8 相似字体计算</div>
+        <form id="search-container">
+            <input type="text" id="search-input" placeholder="请输入字符">
+            <button id="search-button" type="submit">计算</button>
+        </form>
+<!--        <div id="search-container">-->
+<!--            <input type="text" id="search-input" placeholder="请输入字符">-->
+<!--            <button id="search-button">计算</button>-->
+<!--        </div>-->
+        <div id="font-container"></div>
+    </div>
+
+</body>
+
+</html>
